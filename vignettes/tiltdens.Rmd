@@ -1,0 +1,323 @@
+---
+title: "Tilted and data-sharpened density estimation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tilted and data-sharpened density estimation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.2)
+```
+
+```{r setup}
+library(tiltdens)
+set.seed(2016)
+```
+
+## The problem
+
+A conventional kernel density estimator with a non-negative kernel converges at
+rate $O_p(n^{-4/5})$ when the density has two bounded derivatives, and it cannot
+do better than that no matter how smooth the density is. Getting a faster rate
+requires a higher-order kernel, one that takes negative values somewhere.
+
+Higher-order kernels buy the rate at a price. The estimate can go negative, so
+it is not a density; and it develops spurious wiggles, especially in the tails,
+so it suggests structure that is not there.
+
+Here is the problem, on a separated bimodal sample:
+
+```{r problem}
+x <- c(rnorm(50, -1.5), rnorm(50, 1.5))
+
+conventional <- density(x)
+sinc <- sinc_density(x)
+
+plot(sinc, main = "Sinc kernel estimator", ylim = range(0, sinc$y))
+lines(conventional, col = "grey40", lty = 2)
+abline(h = 0, col = "red")
+legend("topright", c("sinc", "conventional"), col = c("black", "grey40"),
+       lty = c(1, 2), bty = "n")
+
+min(sinc$y)
+```
+
+The sinc estimator dips below zero. That is not a defect of this sample; it is
+what infinite-order kernels do.
+
+## The idea
+
+Perturb a conventional kernel estimator so that it sits as close as possible to
+the higher-order one, while staying a proper density. Two kinds of perturbation
+are available.
+
+**Tilting** re-weights the observations:
+$$\hat f(x \mid h, p) = \sum_i p_i K_h(x - x_i), \qquad p_i \ge 0, \ \sum_i p_i = 1.$$
+
+**Data sharpening** moves them:
+$$\hat f(x \mid h, q) = \frac{1}{nh}\sum_i K\!\left(\frac{x - x_i - q_i}{h}\right).$$
+
+Because $K$ is a proper density and the weights are a probability vector, the
+result is always non-negative and always integrates to one. The perturbation is
+chosen to minimise the distance to the higher-order estimator, so the fast
+convergence rate carries over. That is the argument of Doosti and Hall (2016).
+
+```{r tilting}
+fit <- tilt_density(x, m = 3)
+fit
+```
+
+```{r tilting-plot}
+plot(fit, main = "Tilted vs sinc")
+lines(sinc, col = "red", lty = 2)
+abline(h = 0, col = "grey")
+legend("topright", c("tilted", "sinc"), col = c("black", "red"),
+       lty = c(1, 2), bty = "n")
+```
+
+The tilted estimate tracks the sinc estimator where it is sensible and cannot
+follow it below zero.
+
+## How many distinct weights?
+
+`m` controls how many distinct values the weights may take. `m = Inf` gives
+every observation its own weight; `m = 3` allows three, over a central block and
+two tails.
+
+More freedom is not automatically better. In the paper's simulations `m = 3` was
+often the more accurate of the two, because fewer free parameters means less
+overfitting to the comparator's own noise.
+
+```{r m-comparison}
+fit_n <- tilt_density(x, m = Inf)
+fit_3 <- tilt_density(x, m = 3)
+
+c(m_n = fit_n$distance2, m_3 = fit_3$distance2)
+length(unique(round(fit_3$weights, 8)))
+```
+
+## Where do the blocks begin and end?
+
+When `m` is finite there are `m - 1` boundaries to place, and where they go
+matters as much as how many there are. A boundary in the middle of a mode wastes
+a degree of freedom; one at the foot of a mode does not.
+
+Three strategies are available.
+
+```{r breaks}
+c(equal   = tilt_density(x, m = 3, breaks = "equal")$distance2,
+  modal   = tilt_density(x, m = 3, breaks = "modal")$distance2,
+  optimal = tilt_density(x, m = 3, breaks = "optimal")$distance2)
+```
+
+`"equal"` uses blocks of near-equal size, which is Algorithm A of the 2018
+paper. `"modal"` puts the boundaries at the troughs of a pilot density estimate,
+following the practical refinement that paper suggests. `"optimal"` is the
+default for `tilt_density()`, and treats the boundaries as part of the
+optimisation, which is what Section 4.1 of the 2016 paper specifies: the
+breakpoints $r_1$ and $r_2$ are chosen alongside the weights.
+
+Every admissible pair of boundaries is examined when `m \le 3`. That is roughly
+$n^2/2$ candidates, which is affordable because the block sums are read off
+two-dimensional cumulative sums in constant time and the resulting quadratic
+program has only `m` variables. Above `m = 3` the boundaries are refined by
+coordinate descent from an equally spaced start.
+
+It is worth seeing where the search puts them:
+
+```{r breaks-where}
+fit_opt <- tilt_density(x, m = 3, breaks = "optimal")
+fit_opt$breaks          # ranks in the sorted sample
+fit_opt$break_values    # the corresponding data values
+```
+
+On this bimodal sample the search finds the trough between the two modes without
+being told to look for it, which is the same place `"modal"` arrives at by
+construction.
+
+You can also supply the boundaries yourself, as ranks in the sorted sample:
+
+```{r breaks-manual}
+tilt_density(x, m = 3, breaks = c(30, 70))$distance2
+```
+
+## The fitted weights
+
+Tilting down-weights observations in regions where the conventional estimator is
+too high and up-weights them where it is too low:
+
+```{r weights}
+plot(x, fit_n$weights, xlab = "observation", ylab = "tilt weight",
+     main = "Fitted weights, m = Inf")
+abline(h = 1 / length(x), lty = 2, col = "grey40")
+```
+
+## The cross-validation criterion
+
+The 2016 method needs a comparator estimator, and computing the distance to it
+is expensive. Doosti, Hall and Mateu (2018) showed that the bandwidth and the
+weights can instead be chosen together by minimising
+
+$$CV(h, p) = \int \hat f(x \mid h,p)^2\,dx - \frac{2}{n}\sum_i \hat f_{-i}(x_i \mid h,p),$$
+
+which needs no comparator at all and is far cheaper.
+
+```{r cv}
+fit_cv <- tilt_density_cv(x)
+fit_cv
+fit_cv$trace
+```
+
+The `trace` shows what each extra block bought. If the criterion barely moves
+between two and three blocks, the extra flexibility is not earning its keep.
+
+Both criteria reduce to the same convex quadratic program over the probability
+simplex, differing only in one linear term: the 2016 method compares against a
+comparator estimator, the 2018 method against the leave-one-out fit. That is why
+one solver serves both, and why the solution is unique rather than something a
+search has to hunt for.
+
+## Data sharpening
+
+Instead of re-weighting the observations, move them. This is not a convex
+problem, so it uses a stochastic search and the result depends on the seed.
+
+```{r sharpen}
+fit_s <- sharpen_density(x, m = 3,
+                         control = list(max_iterations = 30, population = 25))
+round(unique(fit_s$shifts), 3)
+```
+
+In the published simulations tilting was usually at least as accurate and far
+cheaper, so `tilt_density()` and `tilt_density_cv()` are the better default.
+Sharpening is included for completeness and because the shifts are sometimes
+interpretable in their own right.
+
+## Bandwidths
+
+Three selectors are provided, for three different jobs.
+
+```{r bandwidths}
+c(conventional = bw_nrd_robust(x),
+  flat_top     = bw_flattop(x),
+  comparator   = as.numeric(bw_comparator_cv(x)))
+```
+
+`bw_comparator_cv()` is the default throughout the package. Its criterion is
+multimodal in $h$, and its deepest minimum is often a spurious one at a very
+small bandwidth, so the search is capped at a multiple of the frequency beyond
+which the empirical characteristic function is indistinguishable from noise.
+It is worth looking at the curve rather than trusting the number:
+
+```{r bw-curve}
+cv <- attr(bw_comparator_cv(x), "cv")
+plot(cv$q, cv$cv, type = "l", xlab = "frequency 1/h", ylab = "CV criterion")
+abline(v = 1 / as.numeric(bw_comparator_cv(x)), col = "red", lty = 2)
+```
+
+## Working with fits
+
+Fitted objects inherit from `"density"`, so anything that works for
+`stats::density()` works here.
+
+```{r methods}
+predict(fit, newdata = c(-2, 0, 2))
+
+## Integrated squared error against a known truth
+truth <- function(t) 0.5 * dnorm(t, -1.5) + 0.5 * dnorm(t, 1.5)
+c(conventional = sum(diff(conventional$x) *
+                     ((conventional$y - truth(conventional$x))^2)[-1]),
+  tilted_3 = ise(fit_3, truth),
+  tilted_cv = ise(fit_cv, truth))
+```
+
+## Choosing a kernel
+
+Everything above uses the standard normal, which is what both papers use for
+their numerical work. Other kernels are available:
+
+```{r kernels}
+tilt_kernels()
+```
+
+The Laplace-convolution family is worth singling out. Section 3.1 of the 2016
+paper states its smoothness condition (3.1) for kernels that are *k*-fold
+convolutions of a Laplace density, giving $\tfrac12 e^{-|u|}$ and
+$\tfrac14(1+|u|)e^{-|u|}$ as the $k = 1$ and $k = 2$ examples. Those are
+`"laplace"` and `"laplace2"`.
+
+```{r kernel-compare}
+sapply(c("gaussian", "laplace2", "epanechnikov", "biweight"), function(k) {
+  tilt_density(x, m = 3, kernel = k)$distance2
+})
+```
+
+A bandwidth only means something relative to the kernel it scales: `bw = 0.5`
+smooths far less with the Epanechnikov kernel, which lives on $[-1,1]$, than
+with the Gaussian, which has unit variance. The package handles this with the
+canonical factor of Marron and Nolan (1988),
+$\delta_K = (R(K)/\mu_2(K)^2)^{1/5}$, and rescales the default bandwidth to
+whichever kernel you choose:
+
+```{r canonical}
+sapply(c("gaussian", "epanechnikov", "biweight"), bw_canonical_factor)
+bw_convert(0.5, from = "gaussian", to = "epanechnikov")
+```
+
+So changing the kernel changes the shape of the fit rather than how much it is
+smoothed. The difference is easy to see:
+
+```{r canonical-effect}
+truth <- function(t) 0.5 * dnorm(t, -1.5) + 0.5 * dnorm(t, 1.5)
+kernels <- c("gaussian", "epanechnikov", "biweight", "triangular")
+
+rescaled <- sapply(kernels, function(k) ise(tilt_density(x, m = 3, kernel = k), truth))
+h_gauss  <- tilt_density(x, m = 3, kernel = "gaussian")$bw
+fixed    <- sapply(kernels, function(k)
+                   ise(tilt_density(x, m = 3, kernel = k, bw = h_gauss), truth))
+
+c(rescaled = max(rescaled) / min(rescaled),
+  fixed    = max(fixed) / min(fixed))
+```
+
+The first number is the spread in accuracy across kernels when the bandwidth is
+rescaled; the second is what happens if the Gaussian's bandwidth is used for
+everything. For the Gaussian the factor is one, so nothing about the papers'
+setting changes.
+
+Whatever kernel you pick, the problem stays convex. The quadratic form is
+$A_{ij} = (K \ast K)(x_i - x_j)$, whose Fourier transform is $\phi_K^2 \ge 0$,
+and a function with a non-negative Fourier transform has a positive
+semidefinite Gram matrix.
+
+## Which method should I use?
+
+Start with `tilt_density_cv()`. It is the fastest, it needs no comparator, and
+it was the best performer in five of the eight densities of the 2018
+simulation study.
+
+Reach for `tilt_density()` when you want the estimate anchored to a specific
+infinite-order estimator, or when you want to compare the two comparators. Use
+`m = 3` unless you have a reason to want full flexibility.
+
+Use `sharpen_density()` when the shifts themselves are of interest.
+
+If the density is simple and smooth, a conventional kernel estimator is hard to
+beat, and these methods will roughly match it rather than improve on it. Their
+advantage shows up on complex densities: sharp peaks, well-separated modes,
+heavy tails.
+
+## References
+
+Doosti, H. and Hall, P. (2016). Making a non-parametric density estimator more
+attractive, and more accurate, by data perturbation. *Journal of the Royal
+Statistical Society B* **78**, 445-462.
+
+Doosti, H., Hall, P. and Mateu, J. (2018). Nonparametric tilted density function
+estimation: a cross-validation criterion. *Journal of Statistical Planning and
+Inference* **197**, 51-68.
+
+Politis, D. N. (2003). Adaptive bandwidth choice. *Journal of Nonparametric
+Statistics* **15**, 517-533.

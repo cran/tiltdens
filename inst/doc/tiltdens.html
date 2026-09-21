@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Tilted and data-sharpened density estimation</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Tilted and data-sharpened density
+estimation</h1>
+
+
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(tiltdens)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2016</span>)</span></code></pre></div>
+<div id="the-problem" class="section level2">
+<h2>The problem</h2>
+<p>A conventional kernel density estimator with a non-negative kernel
+converges at rate <span class="math inline">\(O_p(n^{-4/5})\)</span>
+when the density has two bounded derivatives, and it cannot do better
+than that no matter how smooth the density is. Getting a faster rate
+requires a higher-order kernel, one that takes negative values
+somewhere.</p>
+<p>Higher-order kernels buy the rate at a price. The estimate can go
+negative, so it is not a density; and it develops spurious wiggles,
+especially in the tails, so it suggests structure that is not there.</p>
+<p>Here is the problem, on a separated bimodal sample:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">rnorm</span>(<span class="dv">50</span>, <span class="sc">-</span><span class="fl">1.5</span>), <span class="fu">rnorm</span>(<span class="dv">50</span>, <span class="fl">1.5</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>conventional <span class="ot">&lt;-</span> <span class="fu">density</span>(x)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>sinc <span class="ot">&lt;-</span> <span class="fu">sinc_density</span>(x)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="fu">plot</span>(sinc, <span class="at">main =</span> <span class="st">&quot;Sinc kernel estimator&quot;</span>, <span class="at">ylim =</span> <span class="fu">range</span>(<span class="dv">0</span>, sinc<span class="sc">$</span>y))</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">lines</span>(conventional, <span class="at">col =</span> <span class="st">&quot;grey40&quot;</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="dv">0</span>, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;topright&quot;</span>, <span class="fu">c</span>(<span class="st">&quot;sinc&quot;</span>, <span class="st">&quot;conventional&quot;</span>), <span class="at">col =</span> <span class="fu">c</span>(<span class="st">&quot;black&quot;</span>, <span class="st">&quot;grey40&quot;</span>),</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>       <span class="at">lty =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>), <span class="at">bty =</span> <span class="st">&quot;n&quot;</span>)</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqAAAAGTCAMAAADA5FBpAAAAxlBMVEUAAAAAADoAAGYAOjoAOmYAOpAAZpAAZrY6AAA6ADo6AGY6OgA6OmY6OpA6ZpA6ZrY6kLY6kNtmAABmADpmOgBmOjpmZgBmZmZmkJBmkLZmkNtmtrZmtttmtv+QOgCQZgCQZjqQkGaQkLaQtpCQttuQtv+Q29uQ2/+2ZgC2Zjq2ZpC2kDq2kGa225C229u22/+2/7a2/9u2///bkDrbkGbbtmbbtpDb27bb29vb/7bb////AAD/tmb/25D/27b//7b//9v///+3ocW9AAAACXBIWXMAAA7DAAAOwwHHb6hkAAAXxElEQVR4nO2dC5vbtpWGKdezmsTZtiOn1TbNTJomGynbi7tWm2xmOdbo//+p4kLwIhEkAeIAB+T3Pk9sRyKBQ/AVAIIkUFwAYEyROgAAhoCggDUQFLAGggLWQFDAGggKWANBAWsgKGANBAWsgaCANRAUsAaCAtZAUMAaCApYA0EBayAoYA0EBayBoIA1EBSwBoIC1kBQwBoIClgDQQFrIChgDQQFrIGggDUQFLAGggLWQFDAGggKWANBAWsgKGANBL1cXv/6rig2v/4g//lU3D0Pbnws3nx0zmA01df/+ThhK7XZyoCgUgzF5jGZoJ++fDNFULXZyoCgl1NRMenskwg6MVGfvHMHgorTvvla1E6iHn2sVDoVmx9+LIq3B/X9v0QH4FdfN1sLSc674o3oEbyKjTa/keqJPb77UnzW2bP+ui1os8/ln6ZncVQ/j/+VW4mUtz+9kxH9875K5qcvxbdfHMxmQtGffici+kM735jlFRcIauqll/vioRa0avQPl0qLQnzXbC22kl8JmSRvP5pa+O65vWfzdUvQm31k5l1BNe+MjWWdohG02lEmear/tVQgqDzJmz/8Xf+7FvTtB/nng/Ljt8+fdnXjelQmicpW/fOD9lpue/fh8n+dPZuvW4I2H8q68vnyL7NppbEU9EF+WnytkxGf/sdzlYv+KYl/6xhb+S4XCGoukt5+/9wS9FGJsDVSnH5dGSz///e6PhUuyb9OVaUmlW3v2fq6EbT1odjobSvRRlCxqf5TWyn4WQ4z1LFUNf6xne9ygaAX3ctsN8Yn00Rvb69vjnXbL/ypW1+9x6W9Z+vrJpHuh4XpSnYE3VYJVIK+/knvsW1vZrIy+S4XCKp4/fnb+6L2sSvotrPlse71lcWgoK2vG0Hb+3z6Uv/rvwcFlR6//fPPu1pQ/Z1K6hGCroC6IT3WjfFIDXr3F9OQ181rfw1qvu7UoK0m+dO377TsA4Lq8M471KBrRZz7zVfijP903ydo1eMrv/i+2lz+f91RrCvXHkFbX3f6oN0K+fUbfRlvFbQ0P4aH/j4oBF089UB9XxMvBfnN8+tTfTGivNDWqAHUT7tmj8uV2ubrzlW8+VAND8h23uxurUHvnuUg7dak3r2Kh6CLx9zqbNrPtmZmHNRUfK1mthqzlNv2Cdp8fTsOKrf6sRkyLdvjoLd9UBNA2TMOCkGXz6u6ilfX0z2C6jtJX5mN67FIUX99+pO4slIPmfQJ2nzd7sg2++jBgy/UMyry7tPf7Vfxb79Xg1lqsw/VnaSvLhcICkBiIChgDQQFrIGggDUQFLAGggLWQFDAGggKWANBAWsgKGANBAWsgaCANRAUsAaCAtZAUMAaCApYA0EBayAoYA0EBayBoIA1EBSwBoIC1kBQwBoIClgDQQFrIChgDQQFrIGggDUQFLAGggLWuAlqJqtc34JnIBFOgp7MclZlva7VdXIATIJC0NenWsuTZXEz9BjAJEgEPe/qFSpKSyMPQcEkUIMC1pAIKvqgVRVq74O6JAfWC42gZo0K+/K6EBRMgkjQ2MmBpQJBAWuIBJVLSOllp3EVD+ZAdJG0OYhuqFyjag2Cug8qg8kQDjO9Psm12BYvaFtLropm/PshHag/3j0vXdDrs87QgsbMHB2lHag/bhcuaM9hMJPgKhxm0Y1D1AettDzvrp5nWlh3rf8oOB3bbSycopsA2VW8buRfn5Zcg9oOgs3B9dYDeVUOGAf1x34MTI4u8g+o9YxQOCCoN0OHwOLw2P+ApkAt6HIvkoaPgMHxsf8BTQI1qCdjB5D8ACP+gF7u1Y1D2cSfd3/c6ZuI8mbidn7aENSP8fgTH+HcH5DDexgv94/ywcpHLejmoG4k6puJloctHYCgXkwJP+khxvwBlfWg4qN2Uhgbwk0FkaCjb3XmLei06BMe44Ssw0V33unTrAV9VP9QtWoIqJ6oH32r0yU5dkyMPtlBTso4XHSqOnrsCvrZIUzaeCfJg6nBpzrIFL+f4+aQTw268Lc6p8ee5iiTXFeIc94WlHcfdOE1qEPsSQ4ztqCluGCXf7QFVVfxr0/zx5mo+qALfqvTKfQExxn/91OKLqgaVWoJynwcdMFvdbpFHv84uf9+HME4qCuOkcc+UO6/H1cgqCPOgUc+Uua/H2cgqCPMBXXNjf15gKBu9MW9d9+FCve8uJ8ICOrGTdz7/b76a28TNd6x+uTE/ExAUCeuwh6pO/t3IgSCxs+XFaN+9teisQ7WL58Ep6J8HHk/pPkWgrrQibpfxt5P4xytNZfhij7+qRh/eQmCeuEddCpB1a9F/KH/St9HroCgREwN+taEGIfbc/12/cHEHZ0xtzXlPc+Hi3nvQz/RJO/Un64+L4q7X5SC3R3EB0c96xwE9aEd83CrefNthMOddv1G0kc2r3eU6qHQrXnv4wf1rIic/0j878v9Q/0+SH3T/mqHw+W4NalBUHdaMY9dvt9UXvTHO6F/bPumd3C3Gjez/d3CPFqnH2JTjzXp9z7kK73i3/r78s3H5n0QLejNDuf3B/2KEwT1wMHP4b1J6Po5tOVEQ6djHk7Wf1cCmgdEhX7qcbzrz+V/NzvIVErzcL5jaBA0F0GjB2de79C+VQIqx0SLLVr4snoV1CJoewfRWX3zN9SgfriGfNUS0h6xm59h+8jWGlQ06//QlajecLQGVR+gifejjnh6DdXZkvSIm+CmRXe92azgevqgj+Ydz73qhj6aDbuC3uygXhAq0cR7YSJ2aUGjGeqedkhDzesdzUW56VIe1eiT/N68VWdeWLq6im9q0POueICg7nhUoNYkglOl7B/azNhuxkGNoGW1lIaeIqHpm96MgzZ90M3BqOwWGATVJJNgPOEZofE9ISSCVgNfS5pZxDvetjVUB13c5DSJeF3kGdAJql44tt515VoeNvzjbV2PEB20p595GEomaKXmQt6LnxUutaEzfjxBUiGFTNBqcGwhM4sE6IF20glJ4R9WBlUoatBJzL0MMTsSHPYMP28SYgiRoEU17mCdoodnadiYf5lMZ2gRyE+m54RqmEk4ujnYZ77hWRhWAozj7DsphWOun629WZ4TjINOIEiwRIbOTo+5oRB0AkGDDXvkAZp38mGwWUDQCYQKdh8yMZVgkO5nnQjHkwJBxwlxJ7FKYn8Jeej7FZwVwqv4wWUUGBaFFe87NT3sgx46uw5teGhqUOsasn7JpSVcBdpNcCYhK2PGjTxREz86+TO/krASsgLVKYU4+KCdhfUJah4EvEklw/Xig4ca4NImcGeWsaG4SBqDIlJ+9yYJ78XOA4KOQfR8xwyobkqRJToHCDpC6B5onapnQ99Mm8Dt2T0aqAXNfr14FWhoP3Wy8/qipE8/8wE16AiEgjqzp7xvzrQXCkGHIfKzGV2dXo12twxfgJRdW38g6DDUgk5MPcZkZKsSdCnrxROG2Ul6aA2GvlqWJC6WhtIIupj14inD7En7ylO7tpHjSgiJoMtZ7Zishb8MFcFgfTq8awhYnRuip5kWsl48pZ8zyoC48FidG9SgQ9AK6l0IEHTOhpKlrBfPU1DCsttTZ+AM0VX8MtaLJw/SKwPSqIK/lTIXjIMOQB+kTw70gnI6OxDUTowY3fMgjopbFQpB7RD3QJs8SHfwgdHZgaB2YgjqWhCRyo3P6YGgVqL46VoSEHT2hkmSoyCSoE5FEaPYePVCIaiVWCE65BMlJAhKkBwB8SJMdQ5sBH5jdB4Q1IaMMEIDb7IKt9lsWFWhENRGEc3PqaURrcw4VaEQ1ELECvQyrTjiFhmXE+QuqFqqLl6+qYhZgV6mlEfsEmNyhnxq0JNevy5OvqmILOhogUQvMCZnyLOJn+0ok8O3Ej++4Rwjx8OnF+rdBz0NvRIXMN9EJIhvIMvoc63lLqhchlMu92193DNcvmlIEp5VwwTRhJ1odwYegsqHkbWZtheOQuabhrjX8J1sp35KDBdDfa7i5fL00fJNQ+xLpDrf23JJNZVq8Anw/fAQ9L32c0b16ZJvEhJVoCrrYuh/I5K9oLZ56xSZzyySqgLVmddSpp6ImsNJchX02EziPTDMlPvMIkkFvVwuTKZJTx7AZU4NOkDu78WzDi4mDAqC5F587jOLsA4uHix6oSSCLqAGTdrCMyFHQc+7h3oZuYGLpLxnFkl4Dc8LDoYSPW6X9cwiqEArFixo7OSCAkEN+/SnyetW54N8VMT/PrxTvvFhHFp8kheGh6DHu+eX++3lOLIaZ6B848M4tPgkLwyfe/GPaiXOxd7qRAvfJvWJ8hP0KOQcuNWZ9Xrx8LNN8l6oTxO/Pe/uns+7gSY+5/XiIWibHAUV9ePmMLIgfMbrxRfws01qQ6mGmbJdLx4VaJelCho5uXCwDSwViX+uHoKOPusZNN/IcI0rIZk8k9q6SJplpmu+kUEP9IbcBJU3kqaT23rxEPSGtAXiNw4aMd+4wM9b0l4muQs6OoIUNt+4QNAe0r794r6hZQSJKN+4MA0rMSkN9Wnixx9YzvWtTp5RJadIaCjNOGiub3Wihe9naYJm+05SyqqCMwnPlo+gopG/ez4ODDbl+lYnKlAb6U6Xz0XS5nCSTzPZDc21BkUFaiNdyfgMMz0o7Yamvsn0rU4IaiUjQWX7LQUdfKI+y7c6OcbEhWS/Xf8a9DjrrTmOMnCMiQ35CFr1QU/zhus5yoAWfoBUheN5FV8UM2exZSgo/Bwi1QnDA8s1EHSQRGcMghowCDpMot+v7734efOK8BQUDJGLoEd9cXSaudYcPx34RcSMNIa6Clqai6OX+2VdxbMLiB1ZCNp6WnlhczPhEmmUJEXkKGjrDvzgKh/h8o0FBB0lyTlzFnT0OaXA+UYCfo4DQRMCQSeQ4qRBUA38nECKoWIIqmAWDlcSGOos6OjMn4HzjQOzcLiSYGY13OqUoIGfBgRNBASdSPzTBkEvqSd3yQkImgRUoJOJ3siTCKrvN5XZzCzCKhjeyKKKaiidoOqFY+tUeKycYBUMb5YjaKVmDu/Fc4qFPbENJRO0ehwvg5lFcInkQuzCQg0KP92IXFxEgso7TdvLwHzhfKyAoG4sQdBLtdqXfeYbPoJyWBM9K1RxxeuFrn4cFBWoK3Evk1YvKKNIMiFuFUokaEZTgPOJJBeiVqE0gmY0BTibQPIhahVKImg+E9jiEsmDqEVGNMyUyRTg8NOLmIW27hoUgnpRFVqUVp6qD2qZApzXevF7Lj+U3NCllrGgmUwBjgrUk4hV6MrHQZmEkR3xDF23oDyiyJB4BUctKN/14vcsosiU5QgaKTl39iyiyBZTcuSN/KoFTR5EvkBQYlCBziSWoWt+WIRDDNlSFx6xoWt+WIRDDPkSqfTWeasTDfx8chaU/cMiEDQAcRr5Vdag+/QhLICm/CgNjfywiF9ygYGfYYhSha73YZH0EeROlCp0reOg6QNYADHKcH2C7lMHsBzaZUhVia5OUPgZkFYpQtAw7CFoQCJUoSsT1JQi/AwDvaErE5RJ9ouBvhzXKSj8DAV5Sa5J0KYNgqCh6JYkQSu/IkHhJwXUhq5H0FbZQdBwXJVlcENXIyj8JILY0NUIyiTvBUJbnCsUFH6G5aY8g1aiaxB0v+8UGQQNDKmhKxD0qrjgZ2huSzSgoSsQlE3Oi4XS0KULelNS8JMAwkJdtqD7218yBCWgr1ADVaKLFrSnjOAnCXSGEgmafmaRnsozSr4rpdfQEIpSvdWZeGYRW9nATyLICpbVe/H0M9hDUCosJTu7FiURdP7MIjMk3Q+UCfykw1a2MxVlVYNebeLl6FBxwE9CiAqXqg8aZmYRF0f3+6G60yFT4MdA6c6oRYmu4sPNLDJJ0WnHDz9pGSrf0crDJ1G/DYMnN6LoeMXpkSfwgaKAMxDUpuiENt0/S+DDSBH7VKOZDNR3FXU00ytH4MNoIe8vjreYshmoV4pqMb16M/AzCpOK2Va/9O3MeJipQTfmRTFnRA2CxmFyOV83g5YRG6YD9VVbcHUQMySDn7FwKenmJFuvhFPVoPu2gH1/9wfh6xn8jId7WcvK0+oCSbbj68X/PwCTIBGUcgpwnz1RgUbFaZB77KkMgkyJk3Nv5+FnZKaeognbZSios6LwMz7BHgaiFpRovXiX3eFnCkbsm/wYUJY16MWlEoWfibCfIpeH1HIVdLKi8DMdvSI6Puabr6DTFIWfaWm/wOP1Nk8mD4vYUhl9cyRINmAec140y+ZhEQuDhw098yeLh0UGsd/FhZ8LgO3DIg5Y+uIBcwDJyL8G1cl1fSR8sx7EhaoPGn+9+KJF8MRBKti/1QnWTc7joGAFQFDAGggKWANBAWsgKGANBAWsgaCANckEBWASiQQlTzdS+gg/afoRssq8iBB+0vQjZJV5ESH8pOlHyCrzIkL4SdOPkFXmRYTwk6YfIavMiwjhJ00/QlaZFxHCT5p+hKwyLyKEnzT9CFllXkQIP2n6abICwB0IClgDQQFrIChgDQQFrIGggDUQFLAGggLWQFDAGggKWANBAWsgKGANBAWsoRL05b4otkRpVxytk0DORi0WYZkCdT5lUWwOVIkTx64hLPpriAQtxRGcd6SGlvZZSufy+iQEOlH9wEqReElmKG3sGsKiv4FGUD1ZuG29xCCcd3Sl9HIvZ5ImCl+XzZHKINLYNZRFfwONoC+f0TVhFae7b4hLiaiWi2AQWewa+qJvQSNo+eYfO9qOkPgJUHeEjjQO6R+vbZmUQBDFrohQ9C1oBD3Jtehen+g6QrKdJC4l60IRc9NVlRtpFUcWuyRC0bchEnRDXEvIZXBoS6mkvEYiFpQsdgl90XcgElSpqXtbFKhmkrSU6Oog+iaesv6MUPRdggt6kqNwuvhJLpVU+qdqDr/wP4CTHkQ80Z1j8oskwtgvuoBoir4fmhpUL5pIfSFA9zM+EZY/8TATaeyGnGtQjeyotFZOJIGulF7uKSOnHainjb0if0Hl7bx877dVzRiVRCfKW53EsWsWICgAQYCggDUQFLAGggLWQFDAGggKWANBAWsgKGANBAWsgaCANRAUsAaCAtZAUMAaCApYA0EBayAoYA0EBayBoIA1EBSwBoIC1kBQwBoIClgDQQFrIChgDQQFrIGggDUQFLBm1YK+Pun592xTDb18rr6ul43pWz/mODYVUneeMD3vn/m8fGx9cLvnVbo6zJOe+7BspkE8RZwNMTorF1RPRWwR9LxT/taz0fVOS1dZYzfUNpGd+FzKaRf0Oju9+IvMqTQ+qpV+Op8sjpUL+is1x26/oKKOkoLW83n2T+yp9z3vrFP5+Qp6nZ1e/EVP/G8+PdVLAdDNN5qYlQu6Pamz2ydoWU0UXc+I3D81shFUfnfUbe1598edbnTlRIvfbn6QCqk67nj3y675/Lv7ohAf/Nd9bwt9nZ1e/KWjo5oLFIIuF3FulVmVoHL5xk5/Ugtq5pTvn1y+auKNJLK9Pe/kYm/iP7kYTCnSk9P5ysXfRKWo86s+1zVotfF1AFfZmcVf2g26XmwGTfxikZXP0KIVyo56VY7+5Tn0RZJsfc/vD7reU+29+IeuA496z+P+7llIJp2sP9eCPvQvN9HNrln8pbl0Mv0K2rU/E7N6QYeW/ZkkaGWNbmJL2VqrWlL8UZprLPHv8/vvPv8oPpDftT+vN77NvJNd/TuStWY1zXf1XeuTBbJ6QaUug4JOauKVJaJn+eZv941zp3oQ4Pjw8p+/vD+IPoD87jRJ0E529eIv7Z6pzjrK0orpgKDCnuE+6JSLpPr7l/ueGlTUf3/ZXo6/fdLfWWvQbh+0nV29+EurXq1a+Bgr1yUEgora6d1QDTppmEn+pTsErSa+Ukyo8/L57x8uJzmm1fRBTyM16G12TQ3a+uW0P1kiEFRe5wwJOmmgXnqpK8/ioXFOX1+b63o10K6+M5/LOtAq6G12V31Q8x36oIulEvS8GxS0WTamb/2Y1q1O9XV1cV6ZqMY7Dy2Jzq1x0IP8afxiFdRkVy/Kq38LR7PAT93ZqD9ZIqsWFPAHggLWQFDAGggKWANBAWsgKGANBAWsgaCANRAUsAaCAtZAUMAaCApYA0EBayAoYA0EBayBoIA1EBSwBoIC1kBQwBoIClgDQQFrIChgDQQFrIGggDX/BjA1B3OZTO8gAAAAAElFTkSuQmCC" /><!-- --></p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">min</span>(sinc<span class="sc">$</span>y)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; [1] -0.01425296</span></span></code></pre></div>
+<p>The sinc estimator dips below zero. That is not a defect of this
+sample; it is what infinite-order kernels do.</p>
+</div>
+<div id="the-idea" class="section level2">
+<h2>The idea</h2>
+<p>Perturb a conventional kernel estimator so that it sits as close as
+possible to the higher-order one, while staying a proper density. Two
+kinds of perturbation are available.</p>
+<p><strong>Tilting</strong> re-weights the observations: <span class="math display">\[\hat f(x \mid h, p) = \sum_i p_i K_h(x - x_i),
+\qquad p_i \ge 0, \ \sum_i p_i = 1.\]</span></p>
+<p><strong>Data sharpening</strong> moves them: <span class="math display">\[\hat f(x \mid h, q) = \frac{1}{nh}\sum_i
+K\!\left(\frac{x - x_i - q_i}{h}\right).\]</span></p>
+<p>Because <span class="math inline">\(K\)</span> is a proper density
+and the weights are a probability vector, the result is always
+non-negative and always integrates to one. The perturbation is chosen to
+minimise the distance to the higher-order estimator, so the fast
+convergence rate carries over. That is the argument of Doosti and Hall
+(2016).</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>fit</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; Tilted density estimate (Doosti &amp; Hall 2016)</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; Call:      tilt_density(x = x, m = 3)</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt; Data:      x (100 obs.)</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; Bandwidth: 0.4878  (gaussian kernel)</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; Comparator: sinc with bandwidth 0.4878 </span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; Blocks:    3</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; Breaks:    at ranks 49, 53  (x = -0.1609,  0.0116), chosen by &quot;optimal&quot;</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt; Distance:  0.0016291 (squared L2 to the comparator)</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt; Minimum:   9.3851e-05  (a proper density cannot go below zero)</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">plot</span>(fit, <span class="at">main =</span> <span class="st">&quot;Tilted vs sinc&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">lines</span>(sinc, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="dv">0</span>, <span class="at">col =</span> <span class="st">&quot;grey&quot;</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;topright&quot;</span>, <span class="fu">c</span>(<span class="st">&quot;tilted&quot;</span>, <span class="st">&quot;sinc&quot;</span>), <span class="at">col =</span> <span class="fu">c</span>(<span class="st">&quot;black&quot;</span>, <span class="st">&quot;red&quot;</span>),</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>       <span class="at">lty =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>), <span class="at">bty =</span> <span class="st">&quot;n&quot;</span>)</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
+<p>The tilted estimate tracks the sinc estimator where it is sensible
+and cannot follow it below zero.</p>
+</div>
+<div id="how-many-distinct-weights" class="section level2">
+<h2>How many distinct weights?</h2>
+<p><code>m</code> controls how many distinct values the weights may
+take. <code>m = Inf</code> gives every observation its own weight;
+<code>m = 3</code> allows three, over a central block and two tails.</p>
+<p>More freedom is not automatically better. In the paper’s simulations
+<code>m = 3</code> was often the more accurate of the two, because fewer
+free parameters means less overfitting to the comparator’s own
+noise.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>fit_n <span class="ot">&lt;-</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="cn">Inf</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>fit_3 <span class="ot">&lt;-</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">c</span>(<span class="at">m_n =</span> fit_n<span class="sc">$</span>distance2, <span class="at">m_3 =</span> fit_3<span class="sc">$</span>distance2)</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt;          m_n          m_3 </span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt; 0.0007543052 0.0016290758</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">unique</span>(<span class="fu">round</span>(fit_3<span class="sc">$</span>weights, <span class="dv">8</span>)))</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt; [1] 3</span></span></code></pre></div>
+</div>
+<div id="where-do-the-blocks-begin-and-end" class="section level2">
+<h2>Where do the blocks begin and end?</h2>
+<p>When <code>m</code> is finite there are <code>m - 1</code> boundaries
+to place, and where they go matters as much as how many there are. A
+boundary in the middle of a mode wastes a degree of freedom; one at the
+foot of a mode does not.</p>
+<p>Three strategies are available.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">equal   =</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">breaks =</span> <span class="st">&quot;equal&quot;</span>)<span class="sc">$</span>distance2,</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="at">modal   =</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">breaks =</span> <span class="st">&quot;modal&quot;</span>)<span class="sc">$</span>distance2,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">optimal =</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">breaks =</span> <span class="st">&quot;optimal&quot;</span>)<span class="sc">$</span>distance2)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt;       equal       modal     optimal </span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; 0.001974659 0.002116792 0.001629076</span></span></code></pre></div>
+<p><code>&quot;equal&quot;</code> uses blocks of near-equal size, which is
+Algorithm A of the 2018 paper. <code>&quot;modal&quot;</code> puts the boundaries
+at the troughs of a pilot density estimate, following the practical
+refinement that paper suggests. <code>&quot;optimal&quot;</code> is the default
+for <code>tilt_density()</code>, and treats the boundaries as part of
+the optimisation, which is what Section 4.1 of the 2016 paper specifies:
+the breakpoints <span class="math inline">\(r_1\)</span> and <span class="math inline">\(r_2\)</span> are chosen alongside the weights.</p>
+<p>Every admissible pair of boundaries is examined when
+<code>m \le 3</code>. That is roughly <span class="math inline">\(n^2/2\)</span> candidates, which is affordable
+because the block sums are read off two-dimensional cumulative sums in
+constant time and the resulting quadratic program has only
+<code>m</code> variables. Above <code>m = 3</code> the boundaries are
+refined by coordinate descent from an equally spaced start.</p>
+<p>It is worth seeing where the search puts them:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>fit_opt <span class="ot">&lt;-</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">breaks =</span> <span class="st">&quot;optimal&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>fit_opt<span class="sc">$</span>breaks          <span class="co"># ranks in the sorted sample</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; [1] 49 53</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>fit_opt<span class="sc">$</span>break_values    <span class="co"># the corresponding data values</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt; [1] -0.16089095  0.01162934</span></span></code></pre></div>
+<p>On this bimodal sample the search finds the trough between the two
+modes without being told to look for it, which is the same place
+<code>&quot;modal&quot;</code> arrives at by construction.</p>
+<p>You can also supply the boundaries yourself, as ranks in the sorted
+sample:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">30</span>, <span class="dv">70</span>))<span class="sc">$</span>distance2</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.002056011</span></span></code></pre></div>
+</div>
+<div id="the-fitted-weights" class="section level2">
+<h2>The fitted weights</h2>
+<p>Tilting down-weights observations in regions where the conventional
+estimator is too high and up-weights them where it is too low:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">plot</span>(x, fit_n<span class="sc">$</span>weights, <span class="at">xlab =</span> <span class="st">&quot;observation&quot;</span>, <span class="at">ylab =</span> <span class="st">&quot;tilt weight&quot;</span>,</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">&quot;Fitted weights, m = Inf&quot;</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="fu">length</span>(x), <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">&quot;grey40&quot;</span>)</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
+</div>
+<div id="the-cross-validation-criterion" class="section level2">
+<h2>The cross-validation criterion</h2>
+<p>The 2016 method needs a comparator estimator, and computing the
+distance to it is expensive. Doosti, Hall and Mateu (2018) showed that
+the bandwidth and the weights can instead be chosen together by
+minimising</p>
+<p><span class="math display">\[CV(h, p) = \int \hat f(x \mid h,p)^2\,dx
+- \frac{2}{n}\sum_i \hat f_{-i}(x_i \mid h,p),\]</span></p>
+<p>which needs no comparator at all and is far cheaper.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>fit_cv <span class="ot">&lt;-</span> <span class="fu">tilt_density_cv</span>(x)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>fit_cv</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt; Tilted density estimate, cross-validated (Doosti, Hall &amp; Mateu 2018)</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; Call:      tilt_density_cv(x = x)</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; Data:      x (100 obs.)</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; Bandwidth: 0.62462  (gaussian kernel)</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; Blocks:    3</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; Breaks:    at ranks 33, 67  (x = -1.32,  1.10), chosen by &quot;equal&quot;</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt; CV:        -0.14876</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#&gt; Minimum:   7.8671e-05  (a proper density cannot go below zero)</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>fit_cv<span class="sc">$</span>trace</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a><span class="co">#&gt;   n_groups        bw         cv</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a><span class="co">#&gt; 1        1 0.6246156 -0.1477550</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a><span class="co">#&gt; 2        2 0.6246156 -0.1477648</span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a><span class="co">#&gt; 3        3 0.6246156 -0.1487635</span></span></code></pre></div>
+<p>The <code>trace</code> shows what each extra block bought. If the
+criterion barely moves between two and three blocks, the extra
+flexibility is not earning its keep.</p>
+<p>Both criteria reduce to the same convex quadratic program over the
+probability simplex, differing only in one linear term: the 2016 method
+compares against a comparator estimator, the 2018 method against the
+leave-one-out fit. That is why one solver serves both, and why the
+solution is unique rather than something a search has to hunt for.</p>
+</div>
+<div id="data-sharpening" class="section level2">
+<h2>Data sharpening</h2>
+<p>Instead of re-weighting the observations, move them. This is not a
+convex problem, so it uses a stochastic search and the result depends on
+the seed.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>fit_s <span class="ot">&lt;-</span> <span class="fu">sharpen_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>,</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>                         <span class="at">control =</span> <span class="fu">list</span>(<span class="at">max_iterations =</span> <span class="dv">30</span>, <span class="at">population =</span> <span class="dv">25</span>))</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">unique</span>(fit_s<span class="sc">$</span>shifts), <span class="dv">3</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt; [1]  0.020 -0.035 -0.037</span></span></code></pre></div>
+<p>In the published simulations tilting was usually at least as accurate
+and far cheaper, so <code>tilt_density()</code> and
+<code>tilt_density_cv()</code> are the better default. Sharpening is
+included for completeness and because the shifts are sometimes
+interpretable in their own right.</p>
+</div>
+<div id="bandwidths" class="section level2">
+<h2>Bandwidths</h2>
+<p>Three selectors are provided, for three different jobs.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">conventional =</span> <span class="fu">bw_nrd_robust</span>(x),</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="at">flat_top     =</span> <span class="fu">bw_flattop</span>(x),</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="at">comparator   =</span> <span class="fu">as.numeric</span>(<span class="fu">bw_comparator_cv</span>(x)))</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; conventional     flat_top   comparator </span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt;    0.7713780    0.5996131    0.4878049</span></span></code></pre></div>
+<p><code>bw_comparator_cv()</code> is the default throughout the
+package. Its criterion is multimodal in <span class="math inline">\(h\)</span>, and its deepest minimum is often a
+spurious one at a very small bandwidth, so the search is capped at a
+multiple of the frequency beyond which the empirical characteristic
+function is indistinguishable from noise. It is worth looking at the
+curve rather than trusting the number:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>cv <span class="ot">&lt;-</span> <span class="fu">attr</span>(<span class="fu">bw_comparator_cv</span>(x), <span class="st">&quot;cv&quot;</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">plot</span>(cv<span class="sc">$</span>q, cv<span class="sc">$</span>cv, <span class="at">type =</span> <span class="st">&quot;l&quot;</span>, <span class="at">xlab =</span> <span class="st">&quot;frequency 1/h&quot;</span>, <span class="at">ylab =</span> <span class="st">&quot;CV criterion&quot;</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">1</span> <span class="sc">/</span> <span class="fu">as.numeric</span>(<span class="fu">bw_comparator_cv</span>(x)), <span class="at">col =</span> <span class="st">&quot;red&quot;</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
+</div>
+<div id="working-with-fits" class="section level2">
+<h2>Working with fits</h2>
+<p>Fitted objects inherit from <code>&quot;density&quot;</code>, so anything that
+works for <code>stats::density()</code> works here.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">newdata =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span>, <span class="dv">0</span>, <span class="dv">2</span>))</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.2075368 0.1122767 0.1792299</span></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="do">## Integrated squared error against a known truth</span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>truth <span class="ot">&lt;-</span> <span class="cf">function</span>(t) <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">dnorm</span>(t, <span class="sc">-</span><span class="fl">1.5</span>) <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">dnorm</span>(t, <span class="fl">1.5</span>)</span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="fu">c</span>(<span class="at">conventional =</span> <span class="fu">sum</span>(<span class="fu">diff</span>(conventional<span class="sc">$</span>x) <span class="sc">*</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a>                     ((conventional<span class="sc">$</span>y <span class="sc">-</span> <span class="fu">truth</span>(conventional<span class="sc">$</span>x))<span class="sc">^</span><span class="dv">2</span>)[<span class="sc">-</span><span class="dv">1</span>]),</span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a>  <span class="at">tilted_3 =</span> <span class="fu">ise</span>(fit_3, truth),</span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a>  <span class="at">tilted_cv =</span> <span class="fu">ise</span>(fit_cv, truth))</span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a><span class="co">#&gt; conventional     tilted_3    tilted_cv </span></span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a><span class="co">#&gt;  0.002579289  0.003565678  0.004547277</span></span></code></pre></div>
+</div>
+<div id="choosing-a-kernel" class="section level2">
+<h2>Choosing a kernel</h2>
+<p>Everything above uses the standard normal, which is what both papers
+use for their numerical work. Other kernels are available:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">tilt_kernels</span>()</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;gaussian&quot;     &quot;laplace&quot;      &quot;laplace2&quot;     &quot;laplace3&quot;     &quot;laplace4&quot;    </span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co">#&gt; [6] &quot;epanechnikov&quot; &quot;biweight&quot;     &quot;triweight&quot;    &quot;triangular&quot;</span></span></code></pre></div>
+<p>The Laplace-convolution family is worth singling out. Section 3.1 of
+the 2016 paper states its smoothness condition (3.1) for kernels that
+are <em>k</em>-fold convolutions of a Laplace density, giving <span class="math inline">\(\tfrac12 e^{-|u|}\)</span> and <span class="math inline">\(\tfrac14(1+|u|)e^{-|u|}\)</span> as the <span class="math inline">\(k = 1\)</span> and <span class="math inline">\(k =
+2\)</span> examples. Those are <code>&quot;laplace&quot;</code> and
+<code>&quot;laplace2&quot;</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="fu">sapply</span>(<span class="fu">c</span>(<span class="st">&quot;gaussian&quot;</span>, <span class="st">&quot;laplace2&quot;</span>, <span class="st">&quot;epanechnikov&quot;</span>, <span class="st">&quot;biweight&quot;</span>), <span class="cf">function</span>(k) {</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>  <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">kernel =</span> k)<span class="sc">$</span>distance2</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>})</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a><span class="co">#&gt;     gaussian     laplace2 epanechnikov     biweight </span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a><span class="co">#&gt;  0.001629076  0.001976486  0.001482459  0.001491506</span></span></code></pre></div>
+<p>A bandwidth only means something relative to the kernel it scales:
+<code>bw = 0.5</code> smooths far less with the Epanechnikov kernel,
+which lives on <span class="math inline">\([-1,1]\)</span>, than with
+the Gaussian, which has unit variance. The package handles this with the
+canonical factor of Marron and Nolan (1988), <span class="math inline">\(\delta_K = (R(K)/\mu_2(K)^2)^{1/5}\)</span>, and
+rescales the default bandwidth to whichever kernel you choose:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">sapply</span>(<span class="fu">c</span>(<span class="st">&quot;gaussian&quot;</span>, <span class="st">&quot;epanechnikov&quot;</span>, <span class="st">&quot;biweight&quot;</span>), bw_canonical_factor)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="co">#&gt;     gaussian epanechnikov     biweight </span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="co">#&gt;    0.7763884    1.7187719    2.0361680</span></span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="fu">bw_convert</span>(<span class="fl">0.5</span>, <span class="at">from =</span> <span class="st">&quot;gaussian&quot;</span>, <span class="at">to =</span> <span class="st">&quot;epanechnikov&quot;</span>)</span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="co">#&gt; [1] 1.106902</span></span></code></pre></div>
+<p>So changing the kernel changes the shape of the fit rather than how
+much it is smoothed. The difference is easy to see:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>truth <span class="ot">&lt;-</span> <span class="cf">function</span>(t) <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">dnorm</span>(t, <span class="sc">-</span><span class="fl">1.5</span>) <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">dnorm</span>(t, <span class="fl">1.5</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>kernels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;gaussian&quot;</span>, <span class="st">&quot;epanechnikov&quot;</span>, <span class="st">&quot;biweight&quot;</span>, <span class="st">&quot;triangular&quot;</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>rescaled <span class="ot">&lt;-</span> <span class="fu">sapply</span>(kernels, <span class="cf">function</span>(k) <span class="fu">ise</span>(<span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">kernel =</span> k), truth))</span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>h_gauss  <span class="ot">&lt;-</span> <span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">kernel =</span> <span class="st">&quot;gaussian&quot;</span>)<span class="sc">$</span>bw</span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a>fixed    <span class="ot">&lt;-</span> <span class="fu">sapply</span>(kernels, <span class="cf">function</span>(k)</span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a>                   <span class="fu">ise</span>(<span class="fu">tilt_density</span>(x, <span class="at">m =</span> <span class="dv">3</span>, <span class="at">kernel =</span> k, <span class="at">bw =</span> h_gauss), truth))</span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a><span class="fu">c</span>(<span class="at">rescaled =</span> <span class="fu">max</span>(rescaled) <span class="sc">/</span> <span class="fu">min</span>(rescaled),</span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a>  <span class="at">fixed    =</span> <span class="fu">max</span>(fixed) <span class="sc">/</span> <span class="fu">min</span>(fixed))</span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a><span class="co">#&gt; rescaled    fixed </span></span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a><span class="co">#&gt; 1.065392 1.962677</span></span></code></pre></div>
+<p>The first number is the spread in accuracy across kernels when the
+bandwidth is rescaled; the second is what happens if the Gaussian’s
+bandwidth is used for everything. For the Gaussian the factor is one, so
+nothing about the papers’ setting changes.</p>
+<p>Whatever kernel you pick, the problem stays convex. The quadratic
+form is <span class="math inline">\(A_{ij} = (K \ast K)(x_i -
+x_j)\)</span>, whose Fourier transform is <span class="math inline">\(\phi_K^2 \ge 0\)</span>, and a function with a
+non-negative Fourier transform has a positive semidefinite Gram
+matrix.</p>
+</div>
+<div id="which-method-should-i-use" class="section level2">
+<h2>Which method should I use?</h2>
+<p>Start with <code>tilt_density_cv()</code>. It is the fastest, it
+needs no comparator, and it was the best performer in five of the eight
+densities of the 2018 simulation study.</p>
+<p>Reach for <code>tilt_density()</code> when you want the estimate
+anchored to a specific infinite-order estimator, or when you want to
+compare the two comparators. Use <code>m = 3</code> unless you have a
+reason to want full flexibility.</p>
+<p>Use <code>sharpen_density()</code> when the shifts themselves are of
+interest.</p>
+<p>If the density is simple and smooth, a conventional kernel estimator
+is hard to beat, and these methods will roughly match it rather than
+improve on it. Their advantage shows up on complex densities: sharp
+peaks, well-separated modes, heavy tails.</p>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Doosti, H. and Hall, P. (2016). Making a non-parametric density
+estimator more attractive, and more accurate, by data perturbation.
+<em>Journal of the Royal Statistical Society B</em> <strong>78</strong>,
+445-462.</p>
+<p>Doosti, H., Hall, P. and Mateu, J. (2018). Nonparametric tilted
+density function estimation: a cross-validation criterion. <em>Journal
+of Statistical Planning and Inference</em> <strong>197</strong>,
+51-68.</p>
+<p>Politis, D. N. (2003). Adaptive bandwidth choice. <em>Journal of
+Nonparametric Statistics</em> <strong>15</strong>, 517-533.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
