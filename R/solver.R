@@ -40,32 +40,30 @@ solve_simplex_qp <- function(H, f, s = NULL, max_iter = 20000L, tol = 1e-12) {
   u <- s / sum(s)          # uniform weights p_i = 1/n
   solved <- FALSE
 
-  if (requireNamespace("quadprog", quietly = TRUE)) {
-    Amat <- cbind(rep(1, m), diag(m))
-    bvec <- c(1, rep(0, m))
-    ridge <- 1e-10 * max(mean(diag(Hs)), .Machine$double.eps)
-    for (attempt in seq_len(12L)) {
-      fit <- try(
-        quadprog::solve.QP(
-          Dmat = 2 * (Hs + diag(ridge, m)),
-          dvec = 2 * fs, Amat = Amat, bvec = bvec, meq = 1L
-        ),
-        silent = TRUE
-      )
-      if (!inherits(fit, "try-error") && all(is.finite(fit$solution))) {
-        u <- fit$solution
-        solved <- TRUE
-        break
-      }
-      ridge <- ridge * 100
+  Amat <- cbind(rep(1, m), diag(m))
+  bvec <- c(1, rep(0, m))
+  ridge <- 1e-10 * max(mean(diag(Hs)), .Machine$double.eps)
+  for (attempt in seq_len(12L)) {
+    fit <- try(
+      quadprog::solve.QP(
+        Dmat = 2 * (Hs + diag(ridge, m)),
+        dvec = 2 * fs, Amat = Amat, bvec = bvec, meq = 1L
+      ),
+      silent = TRUE
+    )
+    if (!inherits(fit, "try-error") && all(is.finite(fit$solution))) {
+      u <- fit$solution
+      solved <- TRUE
+      break
     }
+    ridge <- ridge * 100
   }
 
   if (!solved) u <- fista_simplex(Hs, fs, u, max_iter, tol)
 
   u <- project_simplex(u)
   q <- u / s
-  list(q = q, value = as.numeric(t(q) %*% H %*% q - 2 * sum(f * q)))
+  list(q = q, value = sum(q * (H %*% q)) - 2 * sum(f * q))
 }
 
 #' Accelerated projected gradient on the standard simplex
@@ -147,7 +145,7 @@ solve_simplex_qp_small <- function(H, f, s) {
 
     q <- numeric(m)
     q[support] <- pmax(q_sup, 0)
-    value <- as.numeric(t(q) %*% H %*% q - 2 * sum(f * q))
+    value <- sum(q * (H %*% q)) - 2 * sum(f * q)
 
     if (value < best_value) {
       best_value <- value
@@ -157,7 +155,7 @@ solve_simplex_qp_small <- function(H, f, s) {
 
   if (is.null(best_q)) {
     best_q <- s / sum(s^2)
-    best_value <- as.numeric(t(best_q) %*% H %*% best_q - 2 * sum(f * best_q))
+    best_value <- sum(best_q * (H %*% best_q)) - 2 * sum(f * best_q)
   }
 
   list(q = best_q, value = best_value)

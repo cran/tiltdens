@@ -21,7 +21,8 @@ tilt_density_cv(
 )
 }
 \arguments{
-\item{x}{Numeric vector of observations.}
+\item{x}{Numeric vector of observations, or a numeric matrix or data
+frame with one row per observation for multivariate data; see Details.}
 
 \item{max_groups}{Largest number of distinct weight values (default 3).}
 

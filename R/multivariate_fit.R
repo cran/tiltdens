@@ -108,7 +108,7 @@ tilt_cv_md <- function(x, bw, weights, kernel = NULL) {
   diag(M) <- 0
   cvec <- colSums(M)
 
-  value <- as.numeric(t(weights) %*% A %*% weights) - 2 * sum(cvec * weights) / n
+  value <- sum(weights * (A %*% weights)) - 2 * sum(cvec * weights) / n
   structure(value, A = A, C = cvec)
 }
 

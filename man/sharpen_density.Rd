@@ -14,6 +14,7 @@ sharpen_density(
   breaks = c("equal", "modal"),
   min_block = NULL,
   max_shift = 1,
+  optimizer = "auto",
   polish = TRUE,
   control = list(),
   n = 512,
@@ -37,9 +38,17 @@ search is not available here, so `breaks` defaults to `"equal"`; supply
 \item{max_shift}{Half-width of the box searched, as a multiple of the data
 range (default 1).}
 
-\item{polish}{Refine the search result with [stats::optim()] (default `TRUE`).}
+\item{optimizer}{How the shifts are searched for: a character string naming
+a built-in strategy (`"auto"`, `"multistart"` or `"ga"`), or a function;
+see the section on choosing the optimizer. The default `"auto"` uses a
+bounded quasi-Newton search from several starting points when there are
+few distinct shifts (`m <= 10`) and the genetic algorithm otherwise.}
 
-\item{control}{A list of options passed to the genetic algorithm; see
+\item{polish}{Refine the search result with a bounded quasi-Newton step,
+[stats::optim()] with method `"L-BFGS-B"` (default `TRUE`).}
+
+\item{control}{A list of options for the built-in optimizer: for
+`"multistart"`, `n_starts` (default 5); for `"ga"`, the arguments of
 [real_ga()].}
 
 \item{n, from, to}{Grid on which to evaluate the fitted density.}
@@ -56,31 +65,47 @@ second form of data perturbation in Doosti and Hall (2016): the observations
 are moved rather than re-weighted.
 }
 \details{
-The objective is not convex, so the result depends on the random seed. Set
-one before calling if you need reproducibility. With `m = Inf` the search is
-over `length(x)` variables and is slow; the paper reports run times of a few
-minutes per sample of size 100. In the published simulations tilting was
-usually at least as accurate and far cheaper, so [tilt_density()] and
-[tilt_density_cv()] are the better default.
+The objective is not convex, so the result can depend on the starting
+points; set a seed before calling if you need reproducibility. In the
+published simulations tilting was usually at least as accurate and far
+cheaper, so [tilt_density()] and [tilt_density_cv()] are the better default.
 }
+\section{Choosing the optimizer}{
+
+The objective is smooth and, for a small number of distinct shifts, low
+dimensional, so a bounded quasi-Newton search from a handful of starting
+points finds a good minimum in a few hundred function evaluations. That is
+`optimizer = "multistart"`, and it is what `"auto"` selects when `m <= 10`.
+With one shift per observation the problem has `length(x)` variables and
+many local minima; `"ga"`, the real-coded genetic algorithm of [real_ga()],
+is the more robust choice there, at a cost of thousands of evaluations.
+
+To use a different search, pass a function with signature
+`function(fn, lower, upper)` returning a list with elements `par` and
+`value`. Anything from \pkg{stats}, \pkg{nloptr}, \pkg{GA} or \pkg{DEoptim}
+can be wrapped this way; the example below wraps a single bounded
+quasi-Newton run.
+
+Sharpening is univariate only. For multivariate data use [tilt_density()],
+where the weights, unlike the shifts, keep the problem convex.
+}
+
 \examples{
 set.seed(1)
-x <- c(rnorm(15, -1.5), rnorm(15, 1.5))
+x <- c(rnorm(20, -1.5), rnorm(20, 1.5))
 
-## A deliberately tiny search budget, so that this runs in about a second.
-## It is far too small for real use; see below for a realistic call.
-fit <- sharpen_density(x, m = 3, polish = FALSE,
-                       control = list(max_iterations = 10, population = 10))
+fit <- sharpen_density(x, m = 3)
+fit
 plot(fit)
 round(unique(fit$shifts), 3)
 
-\donttest{
-## Realistic settings. Expect this to take a few seconds, and much longer
-## with m = Inf, where the search ranges over one shift per observation.
-x <- c(rnorm(50, -1.5), rnorm(50, 1.5))
-fit <- sharpen_density(x, m = 3)
-fit
+## A custom optimizer: one bounded quasi-Newton run from the origin.
+from_origin <- function(fn, lower, upper) {
+  r <- stats::optim(rep(0, length(lower)), fn, method = "L-BFGS-B",
+                    lower = lower, upper = upper)
+  list(par = r$par, value = r$value)
 }
+sharpen_density(x, m = 3, optimizer = from_origin)$distance2
 
 }
 \references{

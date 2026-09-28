@@ -14,7 +14,8 @@
 #' comparator estimator, the 2018 method against the leave-one-out fit. That is
 #' why one solver serves both.
 #'
-#' @param x Numeric vector of observations.
+#' @param x Numeric vector of observations, or a numeric matrix or data
+#'   frame with one row per observation for multivariate data; see Details.
 #' @param bw Positive bandwidth.
 #' @param kernel Kernel of the estimator; see [tilt_kernels()].
 #' @param weights Tilt weights. Defaults to the uniform weights `1/n`, in which
@@ -52,7 +53,7 @@ tilt_cv <- function(x, bw, weights = NULL, kernel = "gaussian") {
   diag(M) <- 0                      # omit the j = i terms
   cvec <- colSums(M)                # c_j = sum over i != j of K_h(x_i - x_j)
 
-  value <- as.numeric(t(weights) %*% A %*% weights) - 2 * sum(cvec * weights) / n
+  value <- sum(weights * (A %*% weights)) - 2 * sum(cvec * weights) / n
   structure(value, A = A, C = cvec)
 }
 
@@ -70,7 +71,8 @@ tilt_cv <- function(x, bw, weights = NULL, kernel = "gaussian") {
 #' values, subject to `h >= rho * h_previous`; the constraint reflects the
 #' optimal bandwidth growing as the bias shrinks. Stop at `max_groups` blocks.
 #'
-#' @param x Numeric vector of observations.
+#' @param x Numeric vector of observations, or a numeric matrix or data
+#'   frame with one row per observation for multivariate data; see Details.
 #' @param max_groups Largest number of distinct weight values (default 3).
 #' @param bw_grid Candidate bandwidths. Defaults to 40 points spaced
 #'   logarithmically over \eqn{[n^{-1/5-c_1}, n^{-1/5+c_1}]} times a robust

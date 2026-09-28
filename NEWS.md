@@ -1,3 +1,29 @@
+# tiltdens 0.2.0
+
+Changes prompted by editorial review at the Journal of Statistical Software.
+
+* `sharpen_density()` gains an `optimizer` argument. The default, a bounded
+  quasi-Newton search from several starting points, reaches the same minimum
+  as the genetic algorithm in a fraction of the time when the number of
+  distinct shifts is small; the genetic algorithm remains available as
+  `"ga"`, and any user-supplied search function of `(fn, lower, upper)` can
+  be used. The polishing step is now bounded (`L-BFGS-B`).
+* `make_kernel()` builds a kernel object from a density function alone, and
+  `check_kernel()` reports whether a kernel has the properties the estimators
+  assume.
+* `conventional_density()` evaluates the ordinary kernel estimator with the
+  package's own code, so that comparisons do not depend on
+  `stats::density()`, whose output changed between R 4.3 and 4.4.
+* `bw_flattop()` failed on data with a large scale, such as the `waiting`
+  column of `faithful`, because its search grid could be shorter than the
+  stretch it looked for. Fixed, with a regression test.
+* Help pages for `tilt_density()` and `tilt_density_cv()` now say that a
+  matrix or data frame is accepted; `sharpen_density()` gives a clear message
+  when handed one.
+* Internal: quadratic forms are computed as `sum(p * (A %*% p))` rather than
+  `t(p) %*% A %*% p`, and block products with `crossprod()`; the redundant
+  availability check for `quadprog`, which is in Imports, is removed.
+
 # tiltdens 0.1.1
 
 First release.

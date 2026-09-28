@@ -24,7 +24,8 @@
 #' between the modes without being told to, which is the same answer `"modal"`
 #' arrives at by construction from a pilot estimate.
 #'
-#' @param x Numeric vector of observations.
+#' @param x Numeric vector of observations, or a numeric matrix or data
+#'   frame with one row per observation for multivariate data; see Details.
 #' @param m Number of distinct weight values. `Inf` (default) or 3 are the cases
 #'   studied in the paper.
 #' @param comparator `"sinc"` (default) or `"trapezoid"`.

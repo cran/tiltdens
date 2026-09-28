@@ -73,8 +73,8 @@ tilt_kernels <- function() {
 #' @rdname kernels
 #' @export
 tilt_kernel <- function(name = "gaussian") {
-  if (is.list(name)) return(custom_kernel(name))
   if (inherits(name, "tilt_kernel")) return(name)
+  if (is.list(name)) return(custom_kernel(name))
 
   name <- tolower(as.character(name)[1L])
   if (name == "normal") name <- "gaussian"
@@ -295,4 +295,118 @@ print.tilt_kernel <- function(x, ...) {
       ",  second moment = ", format(x$moment2, digits = 5),
       ",  canonical factor = ", format(x$canonical, digits = 5), "\n", sep = "")
   invisible(x)
+}
+
+#' Construct and assess a custom kernel
+#'
+#' `make_kernel()` builds a kernel object from a density function alone,
+#' computing everything else the package needs -- the Fourier transform, the
+#' self-convolution, the second moment and the canonical bandwidth factor -- by
+#' quadrature. `check_kernel()` assesses whether a kernel, built-in or custom,
+#' has the properties the estimators assume, and reports them.
+#'
+#' A kernel is suitable for tilting if it is a symmetric probability density.
+#' Non-negativity is what guarantees that the tilted estimate is a density;
+#' symmetry is assumed by the Fourier representation of the cross terms; and
+#' unit mass is what keeps the weights on the simplex meaningful.
+#'
+#' @param dens A vectorised function giving the kernel density.
+#' @param support Half-width of the support, or `Inf`. For an unbounded kernel
+#'   the numerical integrals are truncated at `support_eff` (default 40), which
+#'   is ample for any kernel with tails at least as light as the Laplace.
+#' @param name A name for the kernel.
+#' @param ft,self_conv Optional closed forms for the Fourier transform and the
+#'   self-convolution; computed numerically when omitted.
+#' @param support_eff Truncation point used for unbounded kernels.
+#' @param kernel A kernel name or object, for `check_kernel()`.
+#' @param tolerance Tolerance for the mass and symmetry checks.
+#'
+#' @return `make_kernel()` returns a `"tilt_kernel"` object usable wherever a
+#'   kernel name is accepted. `check_kernel()` returns, invisibly, a list of
+#'   named logicals (`integrates_to_one`, `non_negative`, `symmetric`,
+#'   `ft_at_zero_is_one`) together with the computed `mass`, `moment2`,
+#'   `roughness` and `canonical` factor, and prints a short report.
+#'
+#' @examples
+#' ## The logistic kernel, from its density alone.
+#' logistic <- make_kernel(function(u) exp(-u) / (1 + exp(-u))^2,
+#'                         support = Inf, name = "logistic")
+#' logistic
+#' check_kernel(logistic)
+#'
+#' set.seed(1)
+#' x <- c(rnorm(40, -1.5), rnorm(40, 1.5))
+#' tilt_density(x, m = 3, kernel = logistic)$distance2
+#'
+#' ## A kernel that is not a density is caught.
+#' bad <- make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0), support = 1)
+#' check_kernel(bad)$integrates_to_one
+#'
+#' @name make_kernel
+#' @export
+make_kernel <- function(dens, support = Inf, name = "custom", ft = NULL,
+                        self_conv = NULL, support_eff = 40) {
+  if (!is.function(dens)) stop("`dens` must be a function.", call. = FALSE)
+  lim <- if (is.finite(support)) support else support_eff
+
+  if (is.null(ft)) ft <- numeric_ft(dens, lim)
+  if (is.null(self_conv)) {
+    self_conv <- if (is.finite(support)) numeric_self_conv(dens, support)
+                 else numeric_self_conv_unbounded(dens, lim)
+  }
+  kern <- list(name = name, dens = dens, ft = ft, self_conv = self_conv,
+               moment2 = numeric_moment2(dens, lim), support = support)
+  finalise_kernel(kern)
+}
+
+#' @rdname make_kernel
+#' @export
+check_kernel <- function(kernel, tolerance = 1e-3) {
+  k   <- tilt_kernel(kernel)
+  lim <- if (is.finite(k$support)) k$support else 40
+  rule <- gauss_legendre(-lim, lim, 400L, 8L)
+  y    <- k$dens(rule$nodes)
+
+  mass <- sum(rule$weights * y)
+  sym  <- max(abs(k$dens(rule$nodes) - k$dens(-rule$nodes)))
+
+  out <- list(
+    name              = k$name,
+    integrates_to_one = abs(mass - 1) < tolerance,
+    non_negative      = all(y >= -tolerance),
+    symmetric         = sym < tolerance,
+    ft_at_zero_is_one = abs(k$ft(0) - 1) < tolerance,
+    mass              = mass,
+    moment2           = k$moment2,
+    roughness         = k$roughness,
+    canonical         = k$canonical
+  )
+  ok <- out$integrates_to_one && out$non_negative && out$symmetric &&
+        out$ft_at_zero_is_one
+
+  cat("Kernel:", k$name, "\n")
+  cat(sprintf("  integrates to one  %s  (mass = %.6f)\n",
+              if (out$integrates_to_one) "yes" else "NO ", mass))
+  cat(sprintf("  non-negative       %s\n", if (out$non_negative) "yes" else "NO "))
+  cat(sprintf("  symmetric          %s\n", if (out$symmetric) "yes" else "NO "))
+  cat(sprintf("  Fourier transform  %s  (phi(0) = %.6f)\n",
+              if (out$ft_at_zero_is_one) "yes" else "NO ", k$ft(0)))
+  cat(sprintf("  second moment      %.5f\n  roughness R(K)     %.5f\n  canonical factor   %.5f\n",
+              k$moment2, k$roughness, k$canonical))
+  cat(if (ok) "Suitable for tilting.\n" else
+      "NOT suitable: the tilted estimate would not be a proper density.\n")
+  invisible(out)
+}
+
+#' Self-convolution of an unbounded kernel by quadrature and interpolation
+#' @keywords internal
+#' @noRd
+numeric_self_conv_unbounded <- function(dens, lim) {
+  grid <- seq(-2 * lim, 2 * lim, length.out = 2001L)
+  rule <- gauss_legendre(-lim, lim, 200L, 8L)
+  vals <- vapply(grid, function(v) {
+    sum(rule$weights * dens(rule$nodes) * dens(v - rule$nodes))
+  }, numeric(1))
+  interp <- stats::splinefun(grid, vals, method = "natural")
+  function(v) pmax(interp(v), 0)
 }

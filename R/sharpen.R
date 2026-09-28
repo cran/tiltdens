@@ -35,12 +35,28 @@ sharpen_objective <- function(shifts, x, bw, comparator_bw, comparator,
 #' second form of data perturbation in Doosti and Hall (2016): the observations
 #' are moved rather than re-weighted.
 #'
-#' The objective is not convex, so the result depends on the random seed. Set
-#' one before calling if you need reproducibility. With `m = Inf` the search is
-#' over `length(x)` variables and is slow; the paper reports run times of a few
-#' minutes per sample of size 100. In the published simulations tilting was
-#' usually at least as accurate and far cheaper, so [tilt_density()] and
-#' [tilt_density_cv()] are the better default.
+#' The objective is not convex, so the result can depend on the starting
+#' points; set a seed before calling if you need reproducibility. In the
+#' published simulations tilting was usually at least as accurate and far
+#' cheaper, so [tilt_density()] and [tilt_density_cv()] are the better default.
+#'
+#' @section Choosing the optimizer:
+#' The objective is smooth and, for a small number of distinct shifts, low
+#' dimensional, so a bounded quasi-Newton search from a handful of starting
+#' points finds a good minimum in a few hundred function evaluations. That is
+#' `optimizer = "multistart"`, and it is what `"auto"` selects when `m <= 10`.
+#' With one shift per observation the problem has `length(x)` variables and
+#' many local minima; `"ga"`, the real-coded genetic algorithm of [real_ga()],
+#' is the more robust choice there, at a cost of thousands of evaluations.
+#'
+#' To use a different search, pass a function with signature
+#' `function(fn, lower, upper)` returning a list with elements `par` and
+#' `value`. Anything from \pkg{stats}, \pkg{nloptr}, \pkg{GA} or \pkg{DEoptim}
+#' can be wrapped this way; the example below wraps a single bounded
+#' quasi-Newton run.
+#'
+#' Sharpening is univariate only. For multivariate data use [tilt_density()],
+#' where the weights, unlike the shifts, keep the problem convex.
 #'
 #' @param x Numeric vector of observations.
 #' @param m Number of distinct shift values. `Inf` (default) or 3.
@@ -51,8 +67,15 @@ sharpen_objective <- function(shifts, x, bw, comparator_bw, comparator,
 #'   `"modal"` or an explicit numeric vector if you want different boundaries.
 #' @param max_shift Half-width of the box searched, as a multiple of the data
 #'   range (default 1).
-#' @param polish Refine the search result with [stats::optim()] (default `TRUE`).
-#' @param control A list of options passed to the genetic algorithm; see
+#' @param optimizer How the shifts are searched for: a character string naming
+#'   a built-in strategy (`"auto"`, `"multistart"` or `"ga"`), or a function;
+#'   see the section on choosing the optimizer. The default `"auto"` uses a
+#'   bounded quasi-Newton search from several starting points when there are
+#'   few distinct shifts (`m <= 10`) and the genetic algorithm otherwise.
+#' @param polish Refine the search result with a bounded quasi-Newton step,
+#'   [stats::optim()] with method `"L-BFGS-B"` (default `TRUE`).
+#' @param control A list of options for the built-in optimizer: for
+#'   `"multistart"`, `n_starts` (default 5); for `"ga"`, the arguments of
 #'   [real_ga()].
 #' @param n,from,to Grid on which to evaluate the fitted density.
 #'
@@ -68,30 +91,33 @@ sharpen_objective <- function(shifts, x, bw, comparator_bw, comparator,
 #'
 #' @examples
 #' set.seed(1)
-#' x <- c(rnorm(15, -1.5), rnorm(15, 1.5))
+#' x <- c(rnorm(20, -1.5), rnorm(20, 1.5))
 #'
-#' ## A deliberately tiny search budget, so that this runs in about a second.
-#' ## It is far too small for real use; see below for a realistic call.
-#' fit <- sharpen_density(x, m = 3, polish = FALSE,
-#'                        control = list(max_iterations = 10, population = 10))
+#' fit <- sharpen_density(x, m = 3)
+#' fit
 #' plot(fit)
 #' round(unique(fit$shifts), 3)
 #'
-#' \donttest{
-#' ## Realistic settings. Expect this to take a few seconds, and much longer
-#' ## with m = Inf, where the search ranges over one shift per observation.
-#' x <- c(rnorm(50, -1.5), rnorm(50, 1.5))
-#' fit <- sharpen_density(x, m = 3)
-#' fit
+#' ## A custom optimizer: one bounded quasi-Newton run from the origin.
+#' from_origin <- function(fn, lower, upper) {
+#'   r <- stats::optim(rep(0, length(lower)), fn, method = "L-BFGS-B",
+#'                     lower = lower, upper = upper)
+#'   list(par = r$par, value = r$value)
 #' }
+#' sharpen_density(x, m = 3, optimizer = from_origin)$distance2
 #'
 #' @export
 sharpen_density <- function(x, m = Inf, comparator = c("sinc", "trapezoid"),
                             bw = NULL, comparator_bw = NULL, kernel = "gaussian",
                             breaks = c("equal", "modal"), min_block = NULL,
-                            max_shift = 1, polish = TRUE, control = list(),
-                            n = 512, from = NULL, to = NULL) {
+                            max_shift = 1, optimizer = "auto", polish = TRUE,
+                            control = list(), n = 512, from = NULL, to = NULL) {
   data_name  <- deparse(substitute(x))
+  if (is_multivariate(x)) {
+    stop("sharpen_density() supports univariate data only; for a matrix use ",
+         "tilt_density(), where the weights keep the problem convex.",
+         call. = FALSE)
+  }
   x          <- check_sample(x)
   comparator <- match_comparator(match.arg(comparator))
   if (!is.numeric(breaks)) breaks <- match.arg(breaks)
@@ -118,13 +144,15 @@ sharpen_density <- function(x, m = Inf, comparator = c("sinc", "trapezoid"),
   lower <- rep(-span, n_var)
   upper <- rep(span, n_var)
 
-  ga <- do.call(real_ga, c(list(objective, lower, upper), control))
-  best  <- ga$par
-  value <- ga$value
+  search  <- resolve_optimizer(optimizer, n_var, control)
+  found   <- search(objective, lower, upper)
+  best    <- as.vector(found$par)
+  value   <- found$value
+  history <- if (is.null(found$history)) numeric(0) else found$history
 
   if (polish) {
-    fit <- try(stats::optim(best, objective, method = "Nelder-Mead",
-                            control = list(maxit = 200 * n_var)), silent = TRUE)
+    fit <- try(stats::optim(best, objective, method = "L-BFGS-B",
+                            lower = lower, upper = upper), silent = TRUE)
     if (!inherits(fit, "try-error") && fit$value < value) {
       best  <- fit$par
       value <- fit$value
@@ -148,7 +176,7 @@ sharpen_density <- function(x, m = Inf, comparator = c("sinc", "trapezoid"),
       group_of      = groups$group_of,
       breaks        = groups$breaks,
       breaks_method = if (is.numeric(breaks)) "user" else breaks,
-      history       = ga$history
+      history       = history
     )
   )
 }
@@ -251,4 +279,53 @@ real_ga <- function(fn, lower, upper, max_iterations = 130L, population = 50L,
   }
 
   list(par = pos[1L, ], value = cost[1L], history = history)
+}
+
+
+#' Turn the `optimizer` argument into a search function
+#' @keywords internal
+#' @noRd
+resolve_optimizer <- function(optimizer, n_var, control) {
+  if (is.function(optimizer)) return(optimizer)
+  optimizer <- match.arg(optimizer, c("auto", "multistart", "ga"))
+  if (optimizer == "auto") optimizer <- if (n_var <= 10L) "multistart" else "ga"
+
+  if (optimizer == "multistart") {
+    n_starts <- if (is.null(control$n_starts)) 5L else control$n_starts
+    function(fn, lower, upper) multistart_lbfgsb(fn, lower, upper, n_starts)
+  } else {
+    ga_control <- control[setdiff(names(control), "n_starts")]
+    function(fn, lower, upper) {
+      r <- do.call(real_ga, c(list(fn, lower, upper), ga_control))
+      list(par = r$par, value = r$value, history = r$history)
+    }
+  }
+}
+
+#' Bounded quasi-Newton search from several starting points
+#'
+#' The first start is the origin -- no shift at all -- so the result can never
+#' be worse than the unsharpened estimator. The others are uniform draws in
+#' the box.
+#'
+#' @keywords internal
+#' @noRd
+multistart_lbfgsb <- function(fn, lower, upper, n_starts = 5L) {
+  n_var  <- length(lower)
+  starts <- rbind(rep(0, n_var),
+                  matrix(stats::runif((n_starts - 1L) * n_var, lower, upper),
+                         ncol = n_var, byrow = TRUE))
+  best    <- list(par = starts[1L, ], value = Inf)
+  history <- numeric(nrow(starts))
+  for (i in seq_len(nrow(starts))) {
+    r <- try(stats::optim(starts[i, ], fn, method = "L-BFGS-B",
+                          lower = lower, upper = upper,
+                          control = list(maxit = 200L)), silent = TRUE)
+    if (!inherits(r, "try-error") && is.finite(r$value) && r$value < best$value) {
+      best <- list(par = r$par, value = r$value)
+    }
+    history[i] <- best$value
+  }
+  best$history <- history
+  best
 }

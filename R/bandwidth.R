@@ -166,13 +166,16 @@ bw_flattop <- function(x, c_thresh = 2, kn = NULL, t_max = NULL, n_grid = 4000) 
 
   if (is.null(kn))    kn    <- max(5, sqrt(log10(n)))
   if (is.null(t_max)) t_max <- 50 / scale
+  ## The rule looks for a stretch of length kn below threshold, so the grid
+  ## must extend well past kn whatever the scale of the data.
+  t_max <- max(t_max, 4 * kn)
 
   t <- seq(0, t_max, length.out = n_grid)
   phi_abs <- abs(as.vector(exp(1i * outer(t, x)) %*% rep(1 / n, n)))
 
   below <- phi_abs < c_thresh * sqrt(log10(n) / n)
   dt      <- t[2L] - t[1L]
-  run_len <- max(1L, ceiling(kn / dt))
+  run_len <- min(max(1L, ceiling(kn / dt)), n_grid - 2L)
 
   q_hat <- NA_real_
   for (k in seq_len(length(t) - run_len)) {

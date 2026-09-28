@@ -109,7 +109,7 @@ solve_constrained_simplex_qp <- function(H, f, s, C) {
       q <- pmax(fit$solution, 0) / s
       q <- q / sum(s * q)
       return(list(q = q, feasible = TRUE,
-                  value = as.numeric(t(q) %*% H %*% q - 2 * sum(f * q))))
+                  value = sum(q * (H %*% q)) - 2 * sum(f * q)))
     }
     ridge <- ridge * 100
   }
@@ -134,8 +134,8 @@ fit_constrained_weights <- function(A, linear, x, h, constraint, G,
   grid <- seq(constraint_range[1L], constraint_range[2L],
               length.out = constraint_grid_n)
 
-  H <- t(G) %*% A %*% G
-  f <- as.vector(t(G) %*% linear) / n
+  H <- crossprod(G, A %*% G)
+  f <- as.vector(crossprod(G, linear)) / n
 
   if (constraint %in% c("increasing", "decreasing")) {
     C <- constraint_matrix(x, h, constraint, grid, kernel = kernel) %*% G

@@ -283,8 +283,8 @@ fit_blocked_weights <- function(A, linear, x, m, breaks, min_block,
   }
 
   fit <- solve_simplex_qp(
-    H = t(G) %*% A %*% G,
-    f = as.vector(t(G) %*% linear) / n,
+    H = crossprod(G, A %*% G),
+    f = as.vector(crossprod(G, linear)) / n,
     s = blocks$group_size
   )
 
