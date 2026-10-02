@@ -1,3 +1,14 @@
+# tiltdens 0.2.1
+
+* `make_kernel()` now checks that the kernel is a symmetric probability
+  density and stops with an explanation if it is not; `check = FALSE` builds
+  an unsuitable kernel for inspection only. `tilt_density()`,
+  `tilt_density_cv()`, `tilt_cv()` and `sharpen_density()` refuse such a
+  kernel, so it cannot be used for estimation by mistake.
+* Kernel objects gain `summary()` and `plot()` methods. `summary()` returns the
+  properties `check_kernel()` reports, as an object; `check_kernel()` is now a
+  thin wrapper that prints it.
+
 # tiltdens 0.2.0
 
 Changes prompted by editorial review at the Journal of Statistical Software.

@@ -122,6 +122,7 @@ sharpen_density <- function(x, m = Inf, comparator = c("sinc", "trapezoid"),
   comparator <- match_comparator(match.arg(comparator))
   if (!is.numeric(breaks)) breaks <- match.arg(breaks)
   kernel <- tilt_kernel(kernel)
+  assert_kernel(kernel, context = "sharpen_density()")
   if (is.null(min_block)) min_block <- default_min_block(length(x), m)
 
   if (is.null(comparator_bw)) {

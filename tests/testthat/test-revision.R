@@ -64,16 +64,51 @@ test_that("make_kernel reproduces known constants", {
 
 test_that("check_kernel passes good kernels and flags bad ones", {
   for (name in c("gaussian", "epanechnikov", "laplace2")) {
-    r <- suppressMessages(capture.output(out <- check_kernel(name)))
-    expect_true(out$integrates_to_one && out$non_negative && out$symmetric,
-                label = name)
+    invisible(capture.output(out <- check_kernel(name)))
+    expect_true(out$suitable, label = name)
   }
-  bad <- make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0), support = 1)
+  bad <- make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0),
+                     support = 1, check = FALSE)
   invisible(capture.output(out <- check_kernel(bad)))
   expect_false(out$integrates_to_one)
-  asym <- make_kernel(function(u) ifelse(u >= 0 & u <= 1, 2 * (1 - u), 0), support = 1)
+  expect_false(out$suitable)
+  asym <- make_kernel(function(u) ifelse(u >= 0 & u <= 1, 2 * (1 - u), 0),
+                      support = 1, check = FALSE)
   invisible(capture.output(out <- check_kernel(asym)))
   expect_false(out$symmetric)
+})
+
+test_that("make_kernel refuses an unsuitable kernel unless told not to check", {
+  expect_error(make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0), support = 1),
+               "not a symmetric probability density")
+  expect_error(make_kernel(function(u) ifelse(u >= 0 & u <= 1, 2 * (1 - u), 0), support = 1),
+               "not symmetric")
+  expect_s3_class(make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0),
+                              support = 1, check = FALSE), "tilt_kernel")
+})
+
+test_that("every estimator refuses an unsuitable kernel", {
+  set.seed(6)
+  x <- rnorm(30)
+  bad <- make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0),
+                     support = 1, check = FALSE)
+  expect_error(tilt_density(x, kernel = bad), "tilt_density")
+  expect_error(tilt_density_cv(x, kernel = bad), "tilt_density_cv")
+  expect_error(tilt_cv(x, 0.5, kernel = bad), "tilt_cv")
+  expect_error(sharpen_density(x, m = 3, kernel = bad), "sharpen_density")
+  expect_error(tilt_density(cbind(x, rnorm(30)), kernel = bad), "tilt_density")
+})
+
+test_that("tilt_kernel objects have summary and plot methods", {
+  expect_true(all(c("print", "summary", "plot") %in%
+                  sub("\\.tilt_kernel$", "", format(methods(class = "tilt_kernel")))))
+  s <- summary(tilt_kernel("biweight"))
+  expect_s3_class(s, "summary.tilt_kernel")
+  expect_true(s$suitable)
+  expect_equal(s$canonical, bw_canonical_factor("biweight"))
+  expect_output(print(s), "Suitable for tilting")
+  pdf(NULL); on.exit(dev.off())
+  expect_invisible(plot(tilt_kernel("triangular")))
 })
 
 test_that("a custom kernel from make_kernel works end to end", {

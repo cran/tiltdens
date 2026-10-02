@@ -1,7 +1,7 @@
 Package: tiltdens
 Type: Package
 Title: Tilted and Data-Sharpened Nonparametric Density Estimation
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: person("Hassan", "Doosti", email = "hassan.doosti@mq.edu.au",
                   role = c("aut", "cre", "cph"))
 Description: High-order nonparametric density estimators built by perturbing a
@@ -27,8 +27,8 @@ Config/testthat/edition: 3
 URL: https://github.com/DoostiH/tiltdens
 BugReports: https://github.com/DoostiH/tiltdens/issues
 NeedsCompilation: no
-Packaged: 2026-09-27 09:59:23 UTC; MQ20173444
+Packaged: 2026-10-02 03:55:51 UTC; MQ20173444
 Author: Hassan Doosti [aut, cre, cph]
 Maintainer: Hassan Doosti <hassan.doosti@mq.edu.au>
 Repository: CRAN
-Date/Publication: 2026-09-28 07:10:03 UTC
+Date/Publication: 2026-10-02 06:50:02 UTC

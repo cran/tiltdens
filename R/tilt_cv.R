@@ -40,6 +40,7 @@ tilt_cv <- function(x, bw, weights = NULL, kernel = "gaussian") {
   x <- check_sample(x)
   check_bw(bw)
   kernel <- tilt_kernel(kernel)
+  assert_kernel(kernel, context = "tilt_cv()")
   n <- length(x)
   if (is.null(weights)) weights <- rep(1 / n, n)
   weights <- as.vector(weights)
@@ -129,12 +130,14 @@ tilt_density_cv <- function(x, max_groups = 3, bw_grid = NULL, rho = 0.8,
     }
     return(tilt_density_md(x, "sinc", NULL, NULL, bw_grid, data_name,
                            match.call(), n, criterion = "cv", rho = rho,
-                           kernel = tilt_kernel(kernel)))
+                           kernel = assert_kernel(tilt_kernel(kernel),
+                                                 context = "tilt_density_cv()")))
   }
 
   x         <- check_sample(x)
   constraint <- match_constraint(constraint)
   kernel    <- tilt_kernel(kernel)
+  assert_kernel(kernel, context = "tilt_density_cv()")
   if (!is.numeric(breaks)) breaks <- match.arg(breaks)
   n_obs     <- length(x)
   if (is.null(min_block)) min_block <- default_min_block(n_obs, max_groups)

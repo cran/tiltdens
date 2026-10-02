@@ -134,12 +134,14 @@ tilt_density <- function(x, m = Inf, comparator = c("sinc", "trapezoid"),
     return(tilt_density_md(x, comparator, bw, comparator_bw, bw_grid,
                            data_name, match.call(), n,
                            criterion = "comparator",
-                           kernel = tilt_kernel(kernel)))
+                           kernel = assert_kernel(tilt_kernel(kernel),
+                                                 context = "tilt_density()")))
   }
 
   x          <- check_sample(x)
   constraint <- match_constraint(constraint)
   kernel     <- tilt_kernel(kernel)
+  assert_kernel(kernel, context = "tilt_density()")
   if (!is.numeric(breaks)) breaks <- match.arg(breaks)
   n_obs      <- length(x)
   if (is.null(min_block)) min_block <- default_min_block(n_obs, m)

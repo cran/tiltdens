@@ -11,7 +11,8 @@ make_kernel(
   name = "custom",
   ft = NULL,
   self_conv = NULL,
-  support_eff = 40
+  support_eff = 40,
+  check = TRUE
 )
 
 check_kernel(kernel, tolerance = 0.001)
@@ -30,43 +31,57 @@ self-convolution; computed numerically when omitted.}
 
 \item{support_eff}{Truncation point used for unbounded kernels.}
 
+\item{check}{If `TRUE` (the default), stop with an informative error when
+the kernel is not a symmetric probability density. Set to `FALSE` to
+construct an unsuitable kernel for inspection.}
+
 \item{kernel}{A kernel name or object, for `check_kernel()`.}
 
-\item{tolerance}{Tolerance for the mass and symmetry checks.}
+\item{tolerance}{Tolerance for the mass, symmetry and positivity checks.}
 }
 \value{
 `make_kernel()` returns a `"tilt_kernel"` object usable wherever a
-  kernel name is accepted. `check_kernel()` returns, invisibly, a list of
-  named logicals (`integrates_to_one`, `non_negative`, `symmetric`,
-  `ft_at_zero_is_one`) together with the computed `mass`, `moment2`,
-  `roughness` and `canonical` factor, and prints a short report.
+  kernel name is accepted. `check_kernel()` prints a report and returns,
+  invisibly, the `"summary.tilt_kernel"` object described in
+  [summary.tilt_kernel()].
 }
 \description{
 `make_kernel()` builds a kernel object from a density function alone,
 computing everything else the package needs -- the Fourier transform, the
 self-convolution, the second moment and the canonical bandwidth factor -- by
-quadrature. `check_kernel()` assesses whether a kernel, built-in or custom,
-has the properties the estimators assume, and reports them.
+quadrature. By default it then checks that the result is suitable and stops
+with an explanation if it is not. `check_kernel()` runs the same checks on
+any kernel, built-in or custom, and reports them; `summary()` on a kernel
+object returns the same information as an object.
 }
 \details{
 A kernel is suitable for tilting if it is a symmetric probability density.
 Non-negativity is what guarantees that the tilted estimate is a density;
 symmetry is assumed by the Fourier representation of the cross terms; and
 unit mass is what keeps the weights on the simplex meaningful.
+
+The estimators [tilt_density()], [tilt_density_cv()] and [sharpen_density()]
+refuse a kernel that fails these checks, so an unsuitable kernel built with
+`check = FALSE` can be inspected but not used.
 }
 \examples{
 ## The logistic kernel, from its density alone.
 logistic <- make_kernel(function(u) exp(-u) / (1 + exp(-u))^2,
                         support = Inf, name = "logistic")
 logistic
-check_kernel(logistic)
+summary(logistic)
 
 set.seed(1)
 x <- c(rnorm(40, -1.5), rnorm(40, 1.5))
-tilt_density(x, m = 3, kernel = logistic)$distance2
+tilt_density(x, m = 3, breaks = "equal", kernel = logistic)$distance2
 
-## A kernel that is not a density is caught.
-bad <- make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0), support = 1)
-check_kernel(bad)$integrates_to_one
+## A function that is not a density is refused at construction ...
+try(make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0), support = 1))
+
+## ... and if built anyway for inspection, cannot be used for estimation.
+bad <- make_kernel(function(u) ifelse(abs(u) <= 1, 1 - u^2, 0),
+                   support = 1, check = FALSE)
+check_kernel(bad)
+try(tilt_density(x, kernel = bad))
 
 }
